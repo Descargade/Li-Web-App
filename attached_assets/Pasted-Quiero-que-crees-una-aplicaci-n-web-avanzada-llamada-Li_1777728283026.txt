@@ -1,0 +1,81 @@
+Quiero que crees una aplicación web avanzada llamada “Life Finance Simulator”.
+
+OBJETIVO:
+Debe ser un simulador interactivo donde el usuario toma decisiones financieras a lo largo del tiempo y visualiza el impacto en su vida económica. No quiero una app básica, quiero algo visualmente impresionante, moderno y digno de portfolio profesional.
+
+TECNOLOGÍA:
+- Frontend: React + Vite
+- Estilos: TailwindCSS
+- Gráficos: Recharts (o alternativa liviana)
+- Animaciones: Framer Motion (ligero, no abusar)
+- Sin backend obligatorio (usar localStorage para persistencia)
+
+DISEÑO (MUY IMPORTANTE):
+- UI estilo dashboard moderno (tipo app fintech premium)
+- Modo oscuro por defecto
+- Glassmorphism + sombras suaves
+- Transiciones fluidas
+- Debe sentirse como un “simulador/juego”, no como un formulario aburrido
+
+EXPERIENCIA:
+Quiero que el usuario “avance en el tiempo” (por años o meses) y tome decisiones.
+
+FUNCIONALIDADES PRINCIPALES:
+1. Creación de perfil:
+   - Edad inicial
+   - Ingreso mensual
+   - País (usar inflación simulada)
+   - Objetivo financiero (casa, retiro, viajes)
+
+2. Sistema de simulación:
+   - Botón “Avanzar 1 año”
+   - Mostrar cambios en:
+     - Dinero
+     - Ahorros
+     - Inversiones
+     - Deudas
+   - Aplicar inflación automáticamente
+
+3. Decisiones interactivas (tipo juego):
+   - Cambiar trabajo (↑ ingreso / ↑ estrés)
+   - Invertir dinero (riesgo/beneficio)
+   - Gastos grandes (auto, viaje)
+   - Ahorrar
+
+4. Eventos aleatorios:
+   - Crisis económica
+   - Promoción laboral
+   - Emergencias
+   - Oportunidades de inversión
+
+5. Visualización:
+   - Gráficos en tiempo real (patrimonio, ingresos, gastos)
+   - Línea de tiempo visual
+   - Indicadores animados
+
+6. Sistema de feedback:
+   - Mostrar mensajes inteligentes según decisiones
+   - Ej: “Estás gastando demasiado”, “Buen crecimiento financiero”
+
+EFECTO “WOW” (IMPORTANTE):
+- Agregar un “mapa visual” o “timeline interactivo” donde se vea la vida del usuario como nodos o pasos
+- Cada decisión aparece como un punto en la línea del tiempo
+- Animaciones suaves al avanzar el tiempo
+- Efectos hover y microinteracciones
+
+OPTIMIZACIÓN:
+- Debe correr fluido en navegador (sin usar librerías pesadas)
+- Evitar Three.js completo, usar animaciones CSS/Framer Motion
+
+EXTRA (SI ES POSIBLE):
+- Comparar dos escenarios (ej: invertir vs no invertir)
+- Botón de “reset”
+- Guardado automático
+
+CÓDIGO:
+- Bien estructurado en componentes
+- Separar lógica de simulación en funciones claras
+- Código limpio y entendible
+
+IMPORTANTE:
+No quiero algo simple. Quiero que parezca un producto real tipo startup fintech. Dale prioridad a lo visual, la experiencia y las animaciones sin sacrificar rendimiento.

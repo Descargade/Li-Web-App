@@ -33,8 +33,8 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <AppRouter />
+        <WouterRouter>
+            <AppRouter />
         </WouterRouter>
       </TooltipProvider>
     </QueryClientProvider>

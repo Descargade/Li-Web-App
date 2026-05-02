@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdvisorCard, AdvisorInsight } from "@/components/AdvisorCard";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -379,8 +380,8 @@ function DecisionCard({ card, onAccept, onSkip }: {
 }
 
 // ─── YEAR SUMMARY MODAL ───────────────────────────────────────────────────────
-function YearSummaryModal({ summary, country, onClose }: {
-  summary: YearSummary; country: string; onClose: () => void;
+function YearSummaryModal({ summary, country, simState, onClose }: {
+  summary: YearSummary; country: string; simState: SimulationState; onClose: () => void;
 }) {
   const nwDelta = summary.newState.netWorth - summary.prevState.netWorth;
   const incomeDelta = (summary.newState.monthlyIncome - summary.prevState.monthlyIncome) * 12;
@@ -483,6 +484,10 @@ function YearSummaryModal({ summary, country, onClose }: {
           <div className="text-center py-1">
             <div className="text-xs text-muted-foreground mb-0.5">Patrimonio neto actual</div>
             <div className="text-2xl font-black text-primary">{formatCurrency(summary.newState.netWorth, country)}</div>
+          </div>
+          {/* AI Advisor quick insight */}
+          <div className="pt-2 border-t border-border/40">
+            <AdvisorInsight state={simState} />
           </div>
         </div>
         <div className="p-4 border-t border-border/40">
@@ -1085,6 +1090,10 @@ export default function Dashboard() {
 
             {/* ── ANALYSIS ── */}
             <TabsContent value="analysis" className="space-y-4 mt-0">
+              {/* AI Financial Advisor */}
+              <div className="glass rounded-xl p-5">
+                <AdvisorCard state={simState} />
+              </div>
               <div className="glass rounded-xl p-4">
                 <TrophyShelf unlockedAchievements={simState.unlockedAchievements} />
               </div>
@@ -1145,7 +1154,7 @@ export default function Dashboard() {
         {pendingEvent && !yearSummary && <EventPopup event={pendingEvent} onClose={() => setPendingEvent(null)} />}
       </AnimatePresence>
       <AnimatePresence>
-        {yearSummary && <YearSummaryModal summary={yearSummary} country={profile.country} onClose={closeSummary} />}
+        {yearSummary && <YearSummaryModal summary={yearSummary} country={profile.country} simState={simState} onClose={closeSummary} />}
       </AnimatePresence>
       <AchievementToasts queue={toastQueue} onDismiss={dismissToast} />
     </div>

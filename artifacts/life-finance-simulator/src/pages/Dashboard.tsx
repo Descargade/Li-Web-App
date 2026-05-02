@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdvisorCard, AdvisorInsight } from "@/components/AdvisorCard";
+import { ProjectionsPanel } from "@/components/ProjectionsPanel";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -976,6 +977,7 @@ export default function Dashboard() {
               <TabsTrigger value="overview" data-testid="tab-overview" className="text-xs sm:text-sm"><Activity className="w-3.5 h-3.5 mr-1" />Resumen</TabsTrigger>
               <TabsTrigger value="timeline" data-testid="tab-timeline" className="text-xs sm:text-sm"><Clock className="w-3.5 h-3.5 mr-1" />Timeline</TabsTrigger>
               <TabsTrigger value="compare" data-testid="tab-compare" className="text-xs sm:text-sm"><GitCompare className="w-3.5 h-3.5 mr-1" />Comparar</TabsTrigger>
+              <TabsTrigger value="projections" data-testid="tab-projections" className="text-xs sm:text-sm"><TrendingUp className="w-3.5 h-3.5 mr-1" />Proyecciones</TabsTrigger>
               <TabsTrigger value="analysis" data-testid="tab-analysis" className="text-xs sm:text-sm"><BarChart2 className="w-3.5 h-3.5 mr-1" />Análisis</TabsTrigger>
             </TabsList>
 
@@ -1086,6 +1088,13 @@ export default function Dashboard() {
             {/* ── COMPARE (cross-scenario) ── */}
             <TabsContent value="compare" className="mt-0">
               <CrossScenarioCompare currentId={activeScenario.id} />
+            </TabsContent>
+
+            {/* ── PROJECTIONS ── */}
+            <TabsContent value="projections" className="mt-0">
+              <div className="glass rounded-xl p-5">
+                <ProjectionsPanel state={simState} />
+              </div>
             </TabsContent>
 
             {/* ── ANALYSIS ── */}

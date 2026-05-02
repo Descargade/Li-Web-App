@@ -43,6 +43,8 @@ export interface TimelineEvent {
 
 export type DecisionType = 'opportunity' | 'event';
 export type DecisionCategory = 'career' | 'investment' | 'lifestyle' | 'health' | 'family' | 'education' | 'risk';
+export type AchievementCategory = 'wealth' | 'investment' | 'discipline' | 'risk' | 'balance' | 'milestone';
+export type AchievementRarity = 'common' | 'uncommon' | 'rare' | 'legendary';
 
 export interface Decision {
   id: string;
@@ -71,6 +73,35 @@ export interface YearSummary {
   feedbackMessages: string[];
   score: number;
   scoreGrade: 'S' | 'A' | 'B' | 'C' | 'D';
+  newAchievements: UnlockedAchievement[];
+}
+
+// Achievement definition — lives only in achievements.ts, not persisted
+export interface AchievementDef {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  category: AchievementCategory;
+  rarity: AchievementRarity;
+  condition: (state: SimulationState) => boolean;
+}
+
+// Persisted: just IDs + when they unlocked
+export interface UnlockedAchievement {
+  id: string;
+  unlockedYear: number;
+  unlockedAge: number;
+}
+
+// Mutable data needed by achievement conditions that can't be derived cheaply
+export interface AchievementData {
+  acceptedDecisionIds: string[];
+  highRiskCount: number;
+  hadDebt: boolean;
+  investmentDecisionCount: number;
+  careerDecisionCount: number;
+  consecutiveGrowthYears: number;
 }
 
 export interface SimulationState {
@@ -83,4 +114,6 @@ export interface SimulationState {
   isComparing: boolean;
   createdAt: string;
   score: number;
+  unlockedAchievements: UnlockedAchievement[];
+  achievementData: AchievementData;
 }

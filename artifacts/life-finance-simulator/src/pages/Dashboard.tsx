@@ -1,11 +1,11 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, TrendingDown, RefreshCw, Play, BarChart2,
   Clock, GitCompare, Activity, Wallet, PiggyBank, LineChart,
   AlertTriangle, ChevronRight, Zap, Target, X, Menu,
-  Check, SkipForward, Star, Award
+  Check, SkipForward, Award, Star, Trophy, Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,7 +19,15 @@ import {
   formatCurrency, calcNetWorth, applyImpact,
   calculateScore, scoreGrade, gradeColor
 } from "@/lib/simulation";
-import type { SimulationState, FinancialState, TimelineEvent, Decision, CardState, YearSummary } from "@/lib/types";
+import {
+  checkAchievements, updateAchievementData,
+  updateAchievementDataPostYear, ACHIEVEMENT_DEFS,
+  ACHIEVEMENT_MAP, RARITY_STYLES, CATEGORY_LABELS
+} from "@/lib/achievements";
+import type {
+  SimulationState, FinancialState, TimelineEvent,
+  Decision, CardState, YearSummary, UnlockedAchievement
+} from "@/lib/types";
 
 const C = {
   primary: "hsl(252 87% 67%)",
@@ -46,6 +54,197 @@ function Delta({ value, currency, country }: { value: number; currency?: boolean
   );
 }
 
+// ─── ACHIEVEMENT TOAST QUEUE ─────────────────────────────────────────────────
+function AchievementToasts({ queue, onDismiss }: {
+  queue: UnlockedAchievement[];
+  onDismiss: (id: string) => void;
+}) {
+  const latest = queue[0];
+  if (!latest) return null;
+  const def = ACHIEVEMENT_MAP[latest.id];
+  if (!def) return null;
+  const rs = RARITY_STYLES[def.rarity];
+
+  return (
+    <div className="fixed bottom-6 right-4 z-[60] flex flex-col gap-2 pointer-events-none" style={{ maxWidth: 320 }}>
+      <AnimatePresence mode="popLayout">
+        {queue.slice(0, 3).map((ua, i) => {
+          const d = ACHIEVEMENT_MAP[ua.id];
+          if (!d) return null;
+          const style = RARITY_STYLES[d.rarity];
+          return (
+            <motion.div
+              key={ua.id}
+              layout
+              initial={{ opacity: 0, x: 60, scale: 0.92 }}
+              animate={{ opacity: 1 - i * 0.15, x: 0, scale: 1 - i * 0.03 }}
+              exit={{ opacity: 0, x: 60, scale: 0.88 }}
+              transition={{ type: "spring", damping: 22, stiffness: 280 }}
+              className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border shadow-xl backdrop-blur-md ${style.bg} ${style.border}`}
+              style={{ zIndex: 60 - i }}
+            >
+              <div className="text-2xl shrink-0">{d.icon}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className={`text-xs font-bold uppercase tracking-wider ${style.color}`}>
+                    Logro desbloqueado
+                  </span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${style.color} ${style.bg} border ${style.border}`}>
+                    {style.label}
+                  </span>
+                </div>
+                <div className="font-bold text-foreground text-sm leading-tight">{d.title}</div>
+                <div className="text-xs text-muted-foreground truncate">{d.description}</div>
+              </div>
+              <button
+                onClick={() => onDismiss(ua.id)}
+                className="text-muted-foreground hover:text-foreground p-1 shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Auto-dismiss toasts after 5 seconds
+function useAchievementToasts() {
+  const [queue, setQueue] = useState<UnlockedAchievement[]>([]);
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const push = useCallback((achievements: UnlockedAchievement[]) => {
+    if (achievements.length === 0) return;
+    setQueue(prev => {
+      const existingIds = new Set(prev.map(a => a.id));
+      return [...prev, ...achievements.filter(a => !existingIds.has(a.id))];
+    });
+    achievements.forEach(a => {
+      if (timers.current[a.id]) clearTimeout(timers.current[a.id]);
+      timers.current[a.id] = setTimeout(() => {
+        setQueue(prev => prev.filter(x => x.id !== a.id));
+        delete timers.current[a.id];
+      }, 5000);
+    });
+  }, []);
+
+  const dismiss = useCallback((id: string) => {
+    if (timers.current[id]) { clearTimeout(timers.current[id]); delete timers.current[id]; }
+    setQueue(prev => prev.filter(a => a.id !== id));
+  }, []);
+
+  return { queue, push, dismiss };
+}
+
+// ─── TROPHY SHELF ────────────────────────────────────────────────────────────
+function TrophyShelf({ unlockedAchievements }: { unlockedAchievements: UnlockedAchievement[] }) {
+  const [filter, setFilter] = useState<string>('all');
+  const unlockedIds = new Set(unlockedAchievements.map(a => a.id));
+
+  const categories = ['all', 'wealth', 'investment', 'discipline', 'risk', 'balance', 'milestone'];
+  const visible = ACHIEVEMENT_DEFS.filter(d => filter === 'all' || d.category === filter);
+  const totalUnlocked = unlockedAchievements.length;
+  const totalDefs = ACHIEVEMENT_DEFS.length;
+
+  return (
+    <div className="space-y-4">
+      {/* Header stats */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-amber-400" />
+            Logros ({totalUnlocked}/{totalDefs})
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Desbloqueados a través de decisiones financieras reales
+          </p>
+        </div>
+        <div className="w-32">
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-muted-foreground">Progreso</span>
+            <span className="text-primary font-semibold">{Math.round((totalUnlocked / totalDefs) * 100)}%</span>
+          </div>
+          <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+            <motion.div
+              animate={{ width: `${(totalUnlocked / totalDefs) * 100}%` }}
+              transition={{ duration: 0.6 }}
+              className="h-full rounded-full bg-gradient-to-r from-primary to-amber-400"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Category filter */}
+      <div className="flex flex-wrap gap-1.5">
+        {categories.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setFilter(cat)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+              filter === cat
+                ? "bg-primary text-white"
+                : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
+            }`}
+          >
+            {cat === 'all' ? 'Todos' : CATEGORY_LABELS[cat]}
+          </button>
+        ))}
+      </div>
+
+      {/* Achievement grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <AnimatePresence mode="popLayout">
+          {visible.map(def => {
+            const isUnlocked = unlockedIds.has(def.id);
+            const ua = unlockedAchievements.find(a => a.id === def.id);
+            const rs = RARITY_STYLES[def.rarity];
+            return (
+              <motion.div
+                key={def.id}
+                layout
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                  isUnlocked
+                    ? `${rs.bg} ${rs.border}`
+                    : "bg-secondary/20 border-border/30 opacity-50"
+                }`}
+              >
+                <div className={`text-2xl shrink-0 ${!isUnlocked ? "grayscale opacity-40" : ""}`}>
+                  {isUnlocked ? def.icon : <Lock className="w-5 h-5 text-muted-foreground/40" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={`text-sm font-bold leading-tight ${isUnlocked ? "text-foreground" : "text-muted-foreground"}`}>
+                      {def.title}
+                    </span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold border ${rs.color} ${rs.bg} ${rs.border}`}>
+                      {rs.label}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{def.description}</p>
+                  {isUnlocked && ua && (
+                    <p className="text-xs text-primary/70 mt-0.5">
+                      Año {ua.unlockedYear} · Edad {ua.unlockedAge}
+                    </p>
+                  )}
+                </div>
+                {isUnlocked && (
+                  <Check className={`w-4 h-4 shrink-0 ${rs.color}`} />
+                )}
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+// ─── METRIC CARD ─────────────────────────────────────────────────────────────
 function MetricCard({ label, value, prev, icon: Icon, color, country }: {
   label: string; value: number; prev: number; icon: React.ElementType; color: string; country?: string;
 }) {
@@ -70,11 +269,9 @@ function MetricCard({ label, value, prev, icon: Icon, color, country }: {
   );
 }
 
-// ─── DECISION CARD ───────────────────────────────────────────────────
+// ─── DECISION CARD ────────────────────────────────────────────────────────────
 function DecisionCard({ card, onAccept, onSkip }: {
-  card: CardState;
-  onAccept: () => void;
-  onSkip: () => void;
+  card: CardState; onAccept: () => void; onSkip: () => void;
 }) {
   const { decision, status } = card;
   const riskStyles: Record<string, string> = {
@@ -91,7 +288,6 @@ function DecisionCard({ card, onAccept, onSkip }: {
     education: "Educación", health: "Salud", family: "Familia", risk: "Riesgo",
   };
 
-  const positiveKeys = ['cash', 'savings', 'investments', 'happiness', 'income'];
   const impactPills = Object.entries(decision.impact)
     .filter(([, v]) => v !== undefined && v !== 0)
     .slice(0, 4)
@@ -119,19 +315,18 @@ function DecisionCard({ card, onAccept, onSkip }: {
         "glass border-border hover:border-primary/30"
       }`}
     >
-      {/* Accepted/Skipped overlay badge */}
       {status !== 'pending' && (
-        <div className={`absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${status === 'accepted' ? "bg-primary/20 text-primary" : "bg-border/40 text-muted-foreground"}`}>
+        <div className={`absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold z-10 ${
+          status === 'accepted' ? "bg-primary/20 text-primary" : "bg-border/40 text-muted-foreground"
+        }`}>
           {status === 'accepted' ? <Check className="w-3 h-3" /> : <SkipForward className="w-3 h-3" />}
           {status === 'accepted' ? 'Aceptada' : 'Omitida'}
         </div>
       )}
-
       <div className="p-4">
-        {/* Header */}
         <div className="flex items-start gap-3 mb-2">
           <div className="text-2xl shrink-0 mt-0.5">{decision.emoji}</div>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 pr-16">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-bold text-foreground text-sm leading-tight">{decision.name}</span>
               <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full border ${riskStyles[decision.risk]}`}>
@@ -143,25 +338,19 @@ function DecisionCard({ card, onAccept, onSkip }: {
             </span>
           </div>
         </div>
-
         <p className="text-sm text-muted-foreground mb-2">{decision.description}</p>
-
         {decision.consequence && (
-          <p className="text-xs text-primary/80 italic mb-2">
-            Consecuencia: {decision.consequence}
-          </p>
+          <p className="text-xs text-primary/80 italic mb-2">↳ {decision.consequence}</p>
         )}
-
-        {/* Impact pills */}
         <div className="flex flex-wrap gap-1 mb-3">
           {impactPills.map(p => (
-            <span key={p.key} className={`text-xs px-2 py-0.5 rounded-full font-semibold ${p.isGood ? "bg-green-400/10 text-green-400" : "bg-red-400/10 text-red-400"}`}>
+            <span key={p.key} className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+              p.isGood ? "bg-green-400/10 text-green-400" : "bg-red-400/10 text-red-400"
+            }`}>
               {p.display} {p.label}
             </span>
           ))}
         </div>
-
-        {/* Buttons */}
         {status === 'pending' && (
           <div className="flex gap-2">
             <button
@@ -169,8 +358,7 @@ function DecisionCard({ card, onAccept, onSkip }: {
               data-testid={`btn-accept-${decision.id}`}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary/90 hover:bg-primary text-white text-xs font-semibold transition-colors"
             >
-              <Check className="w-3.5 h-3.5" />
-              Aceptar
+              <Check className="w-3.5 h-3.5" />Aceptar
             </button>
             {decision.type === 'opportunity' && (
               <button
@@ -178,8 +366,7 @@ function DecisionCard({ card, onAccept, onSkip }: {
                 data-testid={`btn-skip-${decision.id}`}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors"
               >
-                <SkipForward className="w-3.5 h-3.5" />
-                Ignorar
+                <SkipForward className="w-3.5 h-3.5" />Ignorar
               </button>
             )}
           </div>
@@ -189,19 +376,17 @@ function DecisionCard({ card, onAccept, onSkip }: {
   );
 }
 
-// ─── YEAR SUMMARY MODAL ───────────────────────────────────────────────
+// ─── YEAR SUMMARY MODAL ───────────────────────────────────────────────────────
 function YearSummaryModal({ summary, country, onClose }: {
   summary: YearSummary; country: string; onClose: () => void;
 }) {
   const nwDelta = summary.newState.netWorth - summary.prevState.netWorth;
-  const incomeDelta = summary.newState.monthlyIncome - summary.prevState.monthlyIncome;
+  const incomeDelta = (summary.newState.monthlyIncome - summary.prevState.monthlyIncome) * 12;
   const gColor = gradeColor(summary.scoreGrade);
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
       onClick={onClose}
     >
@@ -213,7 +398,6 @@ function YearSummaryModal({ summary, country, onClose }: {
         onClick={e => e.stopPropagation()}
         className="w-full max-w-md glass rounded-2xl overflow-hidden"
       >
-        {/* Header */}
         <div className="p-5 border-b border-border/40 flex items-center justify-between">
           <div>
             <div className="text-xs text-muted-foreground uppercase tracking-widest mb-0.5">Resumen del año</div>
@@ -227,17 +411,15 @@ function YearSummaryModal({ summary, country, onClose }: {
         </div>
 
         <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
-          {/* Key deltas */}
           <div className="grid grid-cols-2 gap-2">
             {[
-              { label: "Cambio en patrimonio", value: nwDelta, currency: true },
-              { label: "Cambio en ingreso", value: incomeDelta * 12, currency: true },
-              { label: "Estrés", value: summary.newState.stressLevel - summary.prevState.stressLevel, currency: false },
-              { label: "Felicidad", value: summary.newState.happinessLevel - summary.prevState.happinessLevel, currency: false },
+              { label: "Cambio en patrimonio", value: nwDelta, currency: true, bad: false },
+              { label: "Ingreso anual", value: incomeDelta, currency: true, bad: false },
+              { label: "Estrés", value: summary.newState.stressLevel - summary.prevState.stressLevel, currency: false, bad: true },
+              { label: "Felicidad", value: summary.newState.happinessLevel - summary.prevState.happinessLevel, currency: false, bad: false },
             ].map(item => {
               const isPos = item.value >= 0;
-              const isDebtLike = item.label === "Estrés";
-              const isGood = isDebtLike ? !isPos : isPos;
+              const isGood = item.bad ? !isPos : isPos;
               return (
                 <div key={item.label} className={`rounded-xl p-3 ${isGood ? "bg-green-400/8 border border-green-400/15" : "bg-red-400/8 border border-red-400/15"}`}>
                   <div className={`text-base font-bold ${isGood ? "number-positive" : "number-negative"}`}>
@@ -249,44 +431,61 @@ function YearSummaryModal({ summary, country, onClose }: {
             })}
           </div>
 
-          {/* Accepted decisions */}
+          {summary.newAchievements.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <Trophy className="w-3.5 h-3.5" />Logros desbloqueados este año
+              </div>
+              <div className="space-y-1.5">
+                {summary.newAchievements.map(ua => {
+                  const def = ACHIEVEMENT_MAP[ua.id];
+                  if (!def) return null;
+                  const rs = RARITY_STYLES[def.rarity];
+                  return (
+                    <div key={ua.id} className={`flex items-center gap-2 p-2.5 rounded-xl border ${rs.bg} ${rs.border}`}>
+                      <span className="text-xl">{def.icon}</span>
+                      <div>
+                        <div className={`text-sm font-bold ${rs.color}`}>{def.title}</div>
+                        <div className="text-xs text-muted-foreground">{def.description}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {summary.acceptedDecisions.length > 0 && (
             <div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                 Decisiones tomadas ({summary.acceptedDecisions.length})
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {summary.acceptedDecisions.map(d => (
                   <div key={d.id} className="flex items-center gap-2 p-2 rounded-lg bg-primary/8 border border-primary/15">
                     <span className="text-base">{d.emoji}</span>
-                    <div>
-                      <div className="text-xs font-semibold text-foreground">{d.name}</div>
-                    </div>
-                    <Check className="w-3 h-3 text-primary ml-auto shrink-0" />
+                    <span className="text-xs font-semibold text-foreground flex-1">{d.name}</span>
+                    <Check className="w-3 h-3 text-primary shrink-0" />
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Random events */}
           {summary.triggeredEvents.length > 0 && (
             <div>
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Eventos del año
-              </div>
-              <div className="space-y-1.5">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Eventos del año</div>
+              <div className="space-y-1">
                 {summary.triggeredEvents.map(ev => (
                   <div key={ev.id} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/40 border border-border/40">
                     <span className="text-base">{ev.icon}</span>
-                    <div className="text-xs font-medium text-foreground">{ev.title}</div>
+                    <span className="text-xs font-medium text-foreground">{ev.title}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Feedback */}
           <div className="space-y-2">
             {summary.feedbackMessages.map((msg, i) => (
               <div key={i} className="flex items-start gap-2 p-3 rounded-xl bg-primary/8 border border-primary/15">
@@ -296,7 +495,6 @@ function YearSummaryModal({ summary, country, onClose }: {
             ))}
           </div>
 
-          {/* Patrimonio actual */}
           <div className="text-center py-1">
             <div className="text-xs text-muted-foreground mb-0.5">Patrimonio neto actual</div>
             <div className="text-2xl font-black text-primary">{formatCurrency(summary.newState.netWorth, country)}</div>
@@ -305,8 +503,7 @@ function YearSummaryModal({ summary, country, onClose }: {
 
         <div className="p-4 border-t border-border/40">
           <Button onClick={onClose} className="w-full bg-primary glow-primary font-semibold" data-testid="btn-summary-close">
-            <Play className="w-4 h-4 mr-2" />
-            Siguiente año
+            <Play className="w-4 h-4 mr-2" />Siguiente año
           </Button>
         </div>
       </motion.div>
@@ -314,20 +511,16 @@ function YearSummaryModal({ summary, country, onClose }: {
   );
 }
 
-// ─── EVENT POPUP ─────────────────────────────────────────────────────
+// ─── EVENT POPUP ──────────────────────────────────────────────────────────────
 function EventPopup({ event, onClose }: { event: TimelineEvent; onClose: () => void }) {
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <motion.div
-        initial={{ y: 50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 50, opacity: 0 }}
+        initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
         transition={{ type: "spring", damping: 26, stiffness: 300 }}
         onClick={e => e.stopPropagation()}
         className="w-full max-w-md glass rounded-2xl p-6"
@@ -340,8 +533,7 @@ function EventPopup({ event, onClose }: { event: TimelineEvent; onClose: () => v
         <div className="grid grid-cols-2 gap-2 mb-5">
           {Object.entries(event.impact).filter(([, v]) => v !== undefined && v !== 0).map(([k, v]) => {
             const labels: Record<string, string> = { cash: "Efectivo", savings: "Ahorros", investments: "Inversiones", debt: "Deuda", income: "Ingreso", stress: "Estrés", happiness: "Felicidad" };
-            const val = v as number;
-            const isPos = val > 0;
+            const val = v as number; const isPos = val > 0;
             const actuallyGood = (k === 'debt' || k === 'stress') ? !isPos : isPos;
             const display = (k === 'income' || (k === 'investments' && val < 0))
               ? (isPos ? "+" : "") + (val * 100).toFixed(0) + "%"
@@ -360,7 +552,7 @@ function EventPopup({ event, onClose }: { event: TimelineEvent; onClose: () => v
   );
 }
 
-// ─── TIMELINE ────────────────────────────────────────────────────────
+// ─── TIMELINE ────────────────────────────────────────────────────────────────
 function TimelineView({ timeline, history, country }: { timeline: TimelineEvent[]; history: FinancialState[]; country: string }) {
   const [selected, setSelected] = useState<TimelineEvent | null>(null);
   if (timeline.length === 0) return (
@@ -416,7 +608,7 @@ function TimelineView({ timeline, history, country }: { timeline: TimelineEvent[
   );
 }
 
-// ─── COMPARE ─────────────────────────────────────────────────────────
+// ─── COMPARE ─────────────────────────────────────────────────────────────────
 function CompareView({ state }: { state: SimulationState }) {
   if (!state.scenarioA.length && !state.scenarioB.length) return (
     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -445,25 +637,37 @@ function CompareView({ state }: { state: SimulationState }) {
   );
 }
 
-// ─── SCORE BADGE ────────────────────────────────────────────────────
-function ScoreBadge({ score }: { score: number }) {
+// ─── SCORE BADGE ──────────────────────────────────────────────────────────────
+function ScoreBadge({ score, unlockedCount }: { score: number; unlockedCount: number }) {
   const grade = scoreGrade(score);
   const color = gradeColor(grade);
   return (
     <div className="flex items-center gap-2 glass rounded-xl px-3 py-2">
-      <Award className="w-4 h-4" style={{ color }} />
-      <div>
-        <div className="text-xs text-muted-foreground leading-none mb-0.5">Score</div>
-        <div className="flex items-baseline gap-1">
-          <span className="text-base font-black" style={{ color }}>{grade}</span>
-          <span className="text-xs text-muted-foreground">{score}</span>
+      <Award className="w-4 h-4 shrink-0" style={{ color }} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <div className="text-xs text-muted-foreground leading-none mb-0.5">Score financiero</div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-base font-black" style={{ color }}>{grade}</span>
+              <span className="text-xs text-muted-foreground">{score} pts</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground leading-none mb-0.5">Logros</div>
+            <div className="flex items-center gap-1">
+              <Trophy className="w-3 h-3 text-amber-400" />
+              <span className="text-sm font-bold text-amber-400">{unlockedCount}</span>
+              <span className="text-xs text-muted-foreground">/{ACHIEVEMENT_DEFS.length}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── MAIN DASHBOARD ──────────────────────────────────────────────────
+// ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [simState, setSimState] = useState<SimulationState | null>(loadState);
@@ -472,15 +676,25 @@ export default function Dashboard() {
   const [pendingEvent, setPendingEvent] = useState<TimelineEvent | null>(null);
   const [yearSummary, setYearSummary] = useState<YearSummary | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { queue: toastQueue, push: pushToasts, dismiss: dismissToast } = useAchievementToasts();
 
   useEffect(() => {
     if (!simState?.profile) { setLocation("/"); return; }
     if (cards.length === 0) refreshCards(simState.financial);
+    // Check achievements on first load (catches retroactive unlocks)
+    const initial = checkAchievements(simState, simState.unlockedAchievements.map(a => a.id));
+    if (initial.length > 0) {
+      const updated = {
+        ...simState,
+        unlockedAchievements: [...simState.unlockedAchievements, ...initial],
+      };
+      saveState(updated);
+      setSimState(updated);
+    }
   }, []);
 
   const refreshCards = (state: FinancialState) => {
-    const decisions = getCardsForYear(state);
-    setCards(decisions.map(d => ({ decision: d, status: 'pending' as const })));
+    setCards(getCardsForYear(state).map(d => ({ decision: d, status: 'pending' as const })));
   };
 
   const save = useCallback((state: SimulationState) => {
@@ -493,27 +707,36 @@ export default function Dashboard() {
     const card = cards[idx];
     if (card.status !== 'pending') return;
 
+    // 1. Apply impact
     const newFinancial = applyImpact(simState.financial, card.decision.impact);
     const event: TimelineEvent = {
       id: `d-${card.decision.id}-y${simState.financial.year}`,
-      year: simState.financial.year,
-      age: simState.financial.age,
-      type: 'decision',
-      title: card.decision.name,
-      description: card.decision.description,
-      impact: card.decision.impact,
-      icon: card.decision.emoji,
-      color: '#7c5aff',
+      year: simState.financial.year, age: simState.financial.age,
+      type: 'decision', title: card.decision.name, description: card.decision.description,
+      impact: card.decision.impact, icon: card.decision.emoji, color: '#7c5aff',
     };
-    save({ ...simState, financial: newFinancial, timeline: [...simState.timeline, event] });
+
+    // 2. Update achievement tracking data
+    let updated: SimulationState = updateAchievementData(
+      { ...simState, financial: newFinancial, timeline: [...simState.timeline, event] },
+      card.decision.id, card.decision.risk, card.decision.category
+    );
+
+    // 3. Check for newly unlocked achievements
+    const alreadyIds = updated.unlockedAchievements.map(a => a.id);
+    const newlyUnlocked = checkAchievements(updated, alreadyIds);
+    if (newlyUnlocked.length > 0) {
+      updated = { ...updated, unlockedAchievements: [...updated.unlockedAchievements, ...newlyUnlocked] };
+      pushToasts(newlyUnlocked);
+    }
+
+    save(updated);
     setCards(prev => prev.map((c, i) => i === idx ? { ...c, status: 'accepted' as const } : c));
   };
 
   const skipCard = (idx: number) => {
     setCards(prev => prev.map((c, i) => i === idx ? { ...c, status: 'skipped' as const } : c));
   };
-
-  const allCardsDone = cards.length > 0 && cards.every(c => c.status !== 'pending');
 
   const advanceOneYear = () => {
     if (!simState?.profile || advancing) return;
@@ -529,31 +752,38 @@ export default function Dashboard() {
       const score = calculateScore(newState);
       const grade = scoreGrade(score);
 
-      const updated: SimulationState = {
-        ...simState,
-        financial: newState,
-        history: [...simState.history, { ...newState }],
-        timeline: [...simState.timeline, ...triggeredEvents],
-        score,
-      };
+      // Update achievement data post-year (growth tracking, debt flag)
+      let updated: SimulationState = updateAchievementDataPostYear(
+        {
+          ...simState,
+          financial: newState,
+          history: [...simState.history, { ...newState }],
+          timeline: [...simState.timeline, ...triggeredEvents],
+          score,
+        },
+        prevState.netWorth
+      );
+
+      // Check new achievements after year advance
+      const alreadyIds = updated.unlockedAchievements.map(a => a.id);
+      const newlyUnlocked = checkAchievements(updated, alreadyIds);
+      if (newlyUnlocked.length > 0) {
+        updated = { ...updated, unlockedAchievements: [...updated.unlockedAchievements, ...newlyUnlocked] };
+      }
+
       save(updated);
       setAdvancing(false);
 
       const summary: YearSummary = {
-        year: newState.year,
-        age: newState.age,
-        prevState,
-        newState,
-        acceptedDecisions,
-        triggeredEvents,
-        feedbackMessages,
-        score,
-        scoreGrade: grade,
+        year: newState.year, age: newState.age,
+        prevState, newState, acceptedDecisions, triggeredEvents,
+        feedbackMessages, score, scoreGrade: grade,
+        newAchievements: newlyUnlocked,
       };
 
       if (triggeredEvents.length > 0) {
         setPendingEvent(triggeredEvents[0]);
-        setTimeout(() => { setYearSummary(summary); }, 2400);
+        setTimeout(() => setYearSummary(summary), 2400);
       } else {
         setYearSummary(summary);
       }
@@ -561,8 +791,12 @@ export default function Dashboard() {
   };
 
   const closeSummary = () => {
+    if (!simState) return;
+    const summary = yearSummary;
     setYearSummary(null);
-    if (simState) refreshCards(simState.financial);
+    // Fire achievement toasts from year-end (after modal closes)
+    if (summary?.newAchievements.length) pushToasts(summary.newAchievements);
+    refreshCards(simState.financial);
   };
 
   const saveScenario = (slot: "A" | "B") => {
@@ -577,6 +811,7 @@ export default function Dashboard() {
   const { financial, history, profile, timeline } = simState;
   const prev = history.length > 1 ? history[history.length - 2] : history[0];
   const score = simState.score || calculateScore(financial);
+  const unlockedCount = simState.unlockedAchievements.length;
 
   const chartData = history.map(h => ({
     year: `A${h.year}`,
@@ -593,18 +828,18 @@ export default function Dashboard() {
 
   const pendingCount = cards.filter(c => c.status === 'pending').length;
   const acceptedCount = cards.filter(c => c.status === 'accepted').length;
+  const allCardsDone = cards.length > 0 && cards.every(c => c.status !== 'pending');
 
-  // ── SIDEBAR ───────────────────────────────────────────────────────
+  // ── SIDEBAR ──────────────────────────────────────────────────────────────
   const SidebarContent = () => (
     <div className="flex flex-col gap-3 p-4">
-      <ScoreBadge score={score} />
+      <ScoreBadge score={score} unlockedCount={unlockedCount} />
       <div className="grid grid-cols-2 gap-2">
         <MetricCard label="Efectivo" value={financial.cash} prev={prev.cash} icon={Wallet} color={C.cyan} country={profile.country} />
         <MetricCard label="Ahorros" value={financial.savings} prev={prev.savings} icon={PiggyBank} color={C.primary} country={profile.country} />
         <MetricCard label="Inversiones" value={financial.investments} prev={prev.investments} icon={LineChart} color={C.green} country={profile.country} />
         <MetricCard label="Deuda" value={financial.debt} prev={prev.debt} icon={AlertTriangle} color={C.red} country={profile.country} />
       </div>
-      {/* Wellbeing */}
       <div className="glass rounded-xl p-3 space-y-2">
         {[
           { label: "Estrés", value: financial.stressLevel, bad: true, color: financial.stressLevel > 60 ? C.red : C.amber },
@@ -621,10 +856,8 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
-      {/* Advance button */}
       <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.97 }}
+        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
         onClick={advanceOneYear}
         disabled={advancing || !!yearSummary}
         data-testid="btn-advance-year"
@@ -632,16 +865,10 @@ export default function Dashboard() {
           allCardsDone ? "bg-primary glow-primary" : "bg-primary/70"
         }`}
       >
-        {advancing ? (
-          <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}>
-            <RefreshCw className="w-4 h-4" />
-          </motion.div>
-        ) : (
-          <>
-            <Play className="w-4 h-4" />
-            Avanzar año {financial.year + 1}
-          </>
-        )}
+        {advancing
+          ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}><RefreshCw className="w-4 h-4" /></motion.div>
+          : <><Play className="w-4 h-4" />Avanzar año {financial.year + 1}</>
+        }
       </motion.button>
       {!allCardsDone && pendingCount > 0 && (
         <p className="text-center text-xs text-muted-foreground">
@@ -653,7 +880,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* BG orbs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-60 -left-60 w-[400px] h-[400px] rounded-full bg-primary/8 blur-3xl" />
         <div className="absolute -bottom-60 -right-60 w-[400px] h-[400px] rounded-full bg-accent/8 blur-3xl" />
@@ -672,14 +898,18 @@ export default function Dashboard() {
             <span className="font-bold text-sm">LifeFinance</span>
           </div>
           <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
-            <span>{profile.name}</span>
-            <span>·</span>
-            <span>Edad {financial.age}</span>
-            <span>·</span>
+            <span>{profile.name}</span><span>·</span>
+            <span>Edad {financial.age}</span><span>·</span>
             <span className="text-primary font-semibold">Año {financial.year}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {unlockedCount > 0 && (
+            <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-400/10 border border-amber-400/20">
+              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-xs font-bold text-amber-400">{unlockedCount}</span>
+            </div>
+          )}
           <motion.div key={financial.netWorth} initial={{ scale: 1.04 }} animate={{ scale: 1 }} className="text-right">
             <div className="text-xs text-muted-foreground hidden sm:block">Patrimonio neto</div>
             <div className="text-sm sm:text-base font-bold text-primary">{formatCurrency(financial.netWorth, profile.country)}</div>
@@ -690,7 +920,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Mobile sidebar */}
+      {/* Mobile sidebar overlay */}
       <AnimatePresence>
         {sidebarOpen && (
           <>
@@ -708,22 +938,17 @@ export default function Dashboard() {
 
       {/* Layout */}
       <div className="relative flex">
-        {/* Desktop sidebar */}
         <aside className="hidden lg:flex w-72 xl:w-80 shrink-0 flex-col border-r border-border/50 overflow-y-auto sticky top-[57px] h-[calc(100vh-57px)]">
           <SidebarContent />
         </aside>
 
-        {/* Main */}
         <main className="flex-1 min-w-0 p-4 sm:p-5">
           <Tabs defaultValue="decisions">
             <TabsList className="mb-4 bg-secondary/50 flex-wrap h-auto gap-y-1 w-full sm:w-auto">
               <TabsTrigger value="decisions" data-testid="tab-decisions" className="text-xs sm:text-sm relative">
-                <Target className="w-3.5 h-3.5 mr-1" />
-                Decisiones
+                <Target className="w-3.5 h-3.5 mr-1" />Decisiones
                 {pendingCount > 0 && (
-                  <span className="ml-1.5 w-4 h-4 rounded-full bg-primary text-white text-xs flex items-center justify-center font-bold">
-                    {pendingCount}
-                  </span>
+                  <span className="ml-1.5 w-4 h-4 rounded-full bg-primary text-white text-xs flex items-center justify-center font-bold">{pendingCount}</span>
                 )}
               </TabsTrigger>
               <TabsTrigger value="overview" data-testid="tab-overview" className="text-xs sm:text-sm">
@@ -740,15 +965,12 @@ export default function Dashboard() {
               </TabsTrigger>
             </TabsList>
 
-            {/* ── DECISIONS TAB ── */}
+            {/* ── DECISIONS ── */}
             <TabsContent value="decisions" className="mt-0">
-              {/* Turn banner */}
               <div className="glass rounded-xl p-4 mb-4 flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <div className="text-xs text-muted-foreground uppercase tracking-widest">Turno actual</div>
-                  <h2 className="text-lg font-bold text-foreground">
-                    Año {financial.year + 1} — Elige tu camino
-                  </h2>
+                  <h2 className="text-lg font-bold text-foreground">Año {financial.year + 1} — Elige tu camino</h2>
                   <p className="text-xs text-muted-foreground">
                     {allCardsDone
                       ? `${acceptedCount} decisión${acceptedCount !== 1 ? 'es' : ''} tomada${acceptedCount !== 1 ? 's' : ''}. Listo para avanzar.`
@@ -765,8 +987,7 @@ export default function Dashboard() {
                     <div className="text-xs text-muted-foreground">Ignoradas</div>
                   </div>
                   <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
+                    whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                     onClick={advanceOneYear}
                     disabled={advancing || !!yearSummary}
                     className="px-4 py-2 rounded-xl bg-primary text-white font-semibold text-sm flex items-center gap-2 glow-primary disabled:opacity-50 disabled:cursor-not-allowed"
@@ -776,32 +997,25 @@ export default function Dashboard() {
                   </motion.button>
                 </div>
               </div>
-
-              {/* Decision cards grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 {cards.map((card, idx) => (
-                  <DecisionCard
-                    key={card.decision.id}
-                    card={card}
-                    onAccept={() => acceptCard(idx)}
-                    onSkip={() => skipCard(idx)}
-                  />
+                  <DecisionCard key={card.decision.id} card={card} onAccept={() => acceptCard(idx)} onSkip={() => skipCard(idx)} />
                 ))}
               </div>
             </TabsContent>
 
-            {/* ── OVERVIEW TAB ── */}
+            {/* ── OVERVIEW ── */}
             <TabsContent value="overview" className="space-y-4 mt-0">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                  { label: "Patrimonio neto", value: financial.netWorth, color: C.primary },
-                  { label: "Ingreso mensual", value: financial.monthlyIncome, color: C.green },
-                  { label: "Gastos mensuales", value: financial.monthlyExpenses, color: C.amber },
+                  { label: "Patrimonio neto", value: financial.netWorth, prevVal: prev.netWorth, color: C.primary },
+                  { label: "Ingreso mensual", value: financial.monthlyIncome, prevVal: prev.monthlyIncome, color: C.green },
+                  { label: "Gastos mensuales", value: financial.monthlyExpenses, prevVal: prev.monthlyExpenses, color: C.amber },
                 ].map(item => (
                   <div key={item.label} className="glass rounded-xl p-4">
                     <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
                     <div className="text-xl font-bold" style={{ color: item.color }}>{formatCurrency(item.value, profile.country)}</div>
-                    <Delta value={item.value - (prev as Record<string, number>)[item.label === "Patrimonio neto" ? "netWorth" : item.label === "Ingreso mensual" ? "monthlyIncome" : "monthlyExpenses"]} currency country={profile.country} />
+                    <Delta value={item.value - item.prevVal} currency country={profile.country} />
                   </div>
                 ))}
               </div>
@@ -854,7 +1068,7 @@ export default function Dashboard() {
                         <span className="text-primary font-semibold">{pct.toFixed(1)}%</span>
                       </div>
                       <div className="h-3 bg-secondary rounded-full overflow-hidden">
-                        <motion.div animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: "easeOut" }} className="h-full rounded-full bg-gradient-to-r from-primary to-accent" />
+                        <motion.div animate={{ width: `${pct}%` }} transition={{ duration: 0.8 }} className="h-full rounded-full bg-gradient-to-r from-primary to-accent" />
                       </div>
                     </div>
                   );
@@ -862,7 +1076,7 @@ export default function Dashboard() {
               </div>
             </TabsContent>
 
-            {/* ── TIMELINE TAB ── */}
+            {/* ── TIMELINE ── */}
             <TabsContent value="timeline" className="mt-0">
               <div className="glass rounded-xl p-4">
                 <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
@@ -872,7 +1086,7 @@ export default function Dashboard() {
               </div>
             </TabsContent>
 
-            {/* ── COMPARE TAB ── */}
+            {/* ── COMPARE ── */}
             <TabsContent value="compare" className="mt-0">
               <div className="glass rounded-xl p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -888,8 +1102,13 @@ export default function Dashboard() {
               </div>
             </TabsContent>
 
-            {/* ── ANALYSIS TAB ── */}
+            {/* ── ANALYSIS ── */}
             <TabsContent value="analysis" className="space-y-4 mt-0">
+              {/* Trophy shelf */}
+              <div className="glass rounded-xl p-4">
+                <TrophyShelf unlockedAchievements={simState.unlockedAchievements} />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="glass rounded-xl p-4">
                   <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
@@ -925,6 +1144,7 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
+
               <div className="glass rounded-xl p-4">
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <Star className="w-4 h-4 text-accent" />Métricas globales
@@ -959,6 +1179,9 @@ export default function Dashboard() {
           <YearSummaryModal summary={yearSummary} country={profile.country} onClose={closeSummary} />
         )}
       </AnimatePresence>
+
+      {/* Achievement toasts — outside all modals so always visible */}
+      <AchievementToasts queue={toastQueue} onDismiss={dismissToast} />
     </div>
   );
 }

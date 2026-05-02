@@ -7,7 +7,20 @@ export function loadState(): SimulationState | null {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as SimulationState;
+    const parsed = JSON.parse(raw) as SimulationState;
+    // Back-fill achievement fields for saves that predate the system
+    if (!parsed.unlockedAchievements) parsed.unlockedAchievements = [];
+    if (!parsed.achievementData) {
+      parsed.achievementData = {
+        acceptedDecisionIds: [],
+        highRiskCount: 0,
+        hadDebt: parsed.financial.debt > 1000,
+        investmentDecisionCount: 0,
+        careerDecisionCount: 0,
+        consecutiveGrowthYears: 0,
+      };
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -35,6 +48,15 @@ export function createNewState(profile: UserProfile): SimulationState {
     isComparing: false,
     createdAt: new Date().toISOString(),
     score: calculateScore(financial),
+    unlockedAchievements: [],
+    achievementData: {
+      acceptedDecisionIds: [],
+      highRiskCount: 0,
+      hadDebt: false,
+      investmentDecisionCount: 0,
+      careerDecisionCount: 0,
+      consecutiveGrowthYears: 0,
+    },
   };
 }
 

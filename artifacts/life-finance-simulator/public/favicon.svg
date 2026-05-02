@@ -1,5 +1,39 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" rx="20" fill="#0f172a"/>
-  <path d="M20 65 L40 45 L55 60 L80 30" stroke="#22c55e" stroke-width="6" fill="none"/>
-  <circle cx="80" cy="30" r="4" fill="#22c55e"/>
+  <style>
+    .bg { fill: #0f172a; }
+    .line {
+      stroke: #22c55e;
+      stroke-width: 5;
+      fill: none;
+      stroke-linecap: round;
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+      animation: draw 2s ease-in-out infinite;
+    }
+    .dot {
+      fill: #22c55e;
+      animation: pulse 1.5s ease-in-out infinite;
+      transform-origin: center;
+    }
+
+    @keyframes draw {
+      0% { stroke-dashoffset: 100; opacity: 0; }
+      40% { opacity: 1; }
+      100% { stroke-dashoffset: 0; opacity: 1; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.4); opacity: 1; }
+    }
+  </style>
+
+  <!-- background -->
+  <rect class="bg" width="100" height="100" rx="20"/>
+
+  <!-- growth line -->
+  <path class="line" d="M20 70 L40 50 L55 60 L75 35 L85 25"/>
+
+  <!-- moving highlight dot -->
+  <circle class="dot" cx="85" cy="25" r="4"/>
 </svg>

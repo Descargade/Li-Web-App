@@ -1,5 +1,5 @@
-import type { SimulationState, UserProfile, FinancialState } from './types';
-import { createInitialState } from './simulation';
+import type { SimulationState, UserProfile } from './types';
+import { createInitialState, calculateScore } from './simulation';
 
 const KEY = 'life-finance-sim-v1';
 
@@ -16,9 +16,7 @@ export function loadState(): SimulationState | null {
 export function saveState(state: SimulationState): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
-  } catch {
-    // storage full or unavailable
-  }
+  } catch { /* storage full */ }
 }
 
 export function clearState(): void {
@@ -36,6 +34,7 @@ export function createNewState(profile: UserProfile): SimulationState {
     scenarioB: [],
     isComparing: false,
     createdAt: new Date().toISOString(),
+    score: calculateScore(financial),
   };
 }
 

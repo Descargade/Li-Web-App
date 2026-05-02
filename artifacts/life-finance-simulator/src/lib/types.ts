@@ -41,13 +41,36 @@ export interface TimelineEvent {
   color: string;
 }
 
+export type DecisionType = 'opportunity' | 'event';
+export type DecisionCategory = 'career' | 'investment' | 'lifestyle' | 'health' | 'family' | 'education' | 'risk';
+
 export interface Decision {
   id: string;
   name: string;
   description: string;
+  consequence?: string;
   risk: 'LOW' | 'MED' | 'HIGH';
   impact: TimelineEvent['impact'];
   emoji: string;
+  type: DecisionType;
+  category: DecisionCategory;
+}
+
+export interface CardState {
+  decision: Decision;
+  status: 'pending' | 'accepted' | 'skipped';
+}
+
+export interface YearSummary {
+  year: number;
+  age: number;
+  prevState: FinancialState;
+  newState: FinancialState;
+  acceptedDecisions: Decision[];
+  triggeredEvents: TimelineEvent[];
+  feedbackMessages: string[];
+  score: number;
+  scoreGrade: 'S' | 'A' | 'B' | 'C' | 'D';
 }
 
 export interface SimulationState {
@@ -59,4 +82,5 @@ export interface SimulationState {
   scenarioB: FinancialState[];
   isComparing: boolean;
   createdAt: string;
+  score: number;
 }

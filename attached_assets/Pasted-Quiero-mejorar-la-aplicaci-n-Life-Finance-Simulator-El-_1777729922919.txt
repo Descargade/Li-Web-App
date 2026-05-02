@@ -1,0 +1,75 @@
+Quiero mejorar la aplicación “Life Finance Simulator”.
+
+El estilo visual actual está muy bien logrado, NO quiero cambiar el diseño general ni la estética (mantener UI tipo fintech moderna con glassmorphism y dashboard).
+
+OBJETIVO PRINCIPAL:
+Aumentar la interactividad del usuario y la cantidad de decisiones disponibles por cada año, haciendo que la simulación se sienta más dinámica, realista y tipo juego.
+
+---
+
+🔴 CAMBIOS PRINCIPALES REQUERIDOS:
+
+1. MÁS INTERACCIÓN POR AÑO
+- Actualmente hay pocas decisiones por año.
+- Quiero que cada año el usuario tenga múltiples decisiones posibles, por ejemplo:
+  - Cambiar trabajo
+  - Invertir en diferentes tipos de activos
+  - Gastos importantes (auto, viaje, casa, estudios)
+  - Eventos personales (familia, salud, educación)
+  - Decisiones de ahorro o riesgo
+
+- Las decisiones deben ser más variadas y no repetitivas.
+
+---
+
+2. SISTEMA DE DECISIONES TIPO “EVENT CARDS”
+- Cada año debe mostrar 3 a 5 “tarjetas de decisión” o eventos aleatorios.
+- El usuario elige cuáles tomar o ignorar.
+- Algunas decisiones deben tener consecuencias a corto y largo plazo.
+
+Ejemplo:
+- “Te ofrecen un nuevo trabajo con +30% salario pero más estrés”
+- “Oportunidad de inversión en criptomonedas (alto riesgo)”
+- “Problema médico inesperado con gasto asociado”
+
+---
+
+3. MAYOR INTERACTIVIDAD DEL USUARIO
+- El usuario debe sentir control real sobre su vida simulada:
+  - Poder aceptar o rechazar eventos
+  - Elegir entre varias opciones por decisión
+  - Ver consecuencias inmediatas y futuras
+
+---
+
+4. MEJORAR FEEDBACK DEL SISTEMA
+- Agregar mensajes dinámicos según decisiones:
+  - “Tu patrimonio está creciendo rápidamente”
+  - “Estás asumiendo demasiado riesgo financiero”
+  - “Tu estabilidad financiera es baja”
+
+---
+
+5. MEJORAR LA SENSACIÓN DE PROGRESO
+- Cada año debe sentirse como un “turno de juego”
+- Mostrar claramente:
+  - Año actual
+  - Cambios desde el año anterior
+  - Resumen de decisiones tomadas
+
+---
+
+6. OPCIONAL (MEJORA RECOMENDADA SI ES POSIBLE SIN ROMPER NADA)
+- Agregar un “nivel de vida” o “score financiero”
+- Agregar comparación entre decisiones pasadas
+- Pequeñas animaciones al finalizar cada año (subida/bajada de dinero)
+
+---
+
+IMPORTANTE:
+- No cambiar el diseño visual actual ni la estética general.
+- No romper el rendimiento.
+- Solo mejorar interactividad, contenido y profundidad del simulador.
+- Mantenerlo fluido y usable en Replit gratuito.
+
+El objetivo es que la app se sienta como un simulador de vida financiera real tipo juego estratégico, no como una simple calculadora.

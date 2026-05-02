@@ -17,9 +17,9 @@ const GOALS = [
 ] as const;
 
 const slideVariants = {
-  enter: (dir: number) => ({ x: dir > 0 ? 80 : -80, opacity: 0 }),
+  enter: (dir: number) => ({ x: dir > 0 ? 60 : -60, opacity: 0 }),
   center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir > 0 ? -80 : 80, opacity: 0 }),
+  exit: (dir: number) => ({ x: dir > 0 ? -60 : 60, opacity: 0 }),
 };
 
 export default function Onboarding() {
@@ -56,20 +56,19 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-start py-8 px-4 relative">
       {/* Background orbs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-accent/10 blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/5 blur-3xl" />
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -left-40 w-80 h-80 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute -bottom-40 -right-40 w-80 h-80 rounded-full bg-accent/10 blur-3xl" />
       </div>
 
       <div className="relative w-full max-w-lg">
         {/* Logo */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-10"
+          className="text-center mb-8"
         >
           <div className="inline-flex items-center gap-2 mb-3">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center glow-primary">
@@ -77,7 +76,7 @@ export default function Onboarding() {
             </div>
             <span className="text-sm font-semibold text-muted-foreground tracking-widest uppercase">Life Finance</span>
           </div>
-          <h1 className="text-4xl font-bold text-foreground leading-tight">
+          <h1 className="text-3xl sm:text-4xl font-bold text-foreground leading-tight">
             Tu vida financiera,<br />
             <span className="text-primary">simulada</span>
           </h1>
@@ -85,7 +84,7 @@ export default function Onboarding() {
         </motion.div>
 
         {/* Progress */}
-        <div className="flex gap-2 mb-8 justify-center">
+        <div className="flex gap-2 mb-6 justify-center">
           {Array.from({ length: totalSteps }).map((_, i) => (
             <motion.div
               key={i}
@@ -95,8 +94,8 @@ export default function Onboarding() {
           ))}
         </div>
 
-        {/* Step card */}
-        <div className="glass rounded-2xl p-8 relative overflow-hidden" style={{ minHeight: 340 }}>
+        {/* Step card — no overflow-hidden, no absolute positioning, dynamic height */}
+        <div className="glass rounded-2xl relative overflow-hidden">
           <AnimatePresence mode="wait" custom={dir}>
             <motion.div
               key={step}
@@ -105,19 +104,19 @@ export default function Onboarding() {
               initial="enter"
               animate="center"
               exit="exit"
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="absolute inset-8"
+              transition={{ duration: 0.28, ease: "easeInOut" }}
+              className="p-6 sm:p-8"
             >
               {step === 0 && (
-                <div className="space-y-6">
+                <div className="space-y-5">
                   <div>
-                    <h2 className="text-2xl font-bold text-foreground mb-1">Cuéntanos sobre ti</h2>
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-1">Cuéntanos sobre ti</h2>
                     <p className="text-muted-foreground text-sm">Tu punto de partida en esta simulación.</p>
                   </div>
                   <div className="space-y-4">
                     <div>
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
-                        <User className="inline w-3 h-3 mr-1" />
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                        <User className="w-3 h-3" />
                         Tu nombre
                       </label>
                       <Input
@@ -146,17 +145,17 @@ export default function Onboarding() {
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
-                        <Globe className="inline w-3 h-3 mr-1" />
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                        <Globe className="w-3 h-3" />
                         País
                       </label>
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-4 gap-1.5">
                         {COUNTRIES.map(c => (
                           <button
                             key={c}
                             data-testid={`btn-country-${c}`}
                             onClick={() => setForm(f => ({ ...f, country: c }))}
-                            className={`px-2 py-2 rounded-lg text-xs font-medium transition-all ${
+                            className={`px-1 py-2 rounded-lg text-xs font-medium transition-all truncate ${
                               form.country === c
                                 ? "bg-primary text-white glow-primary"
                                 : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
@@ -172,16 +171,16 @@ export default function Onboarding() {
               )}
 
               {step === 1 && (
-                <div className="space-y-6">
+                <div className="space-y-5">
                   <div>
-                    <h2 className="text-2xl font-bold text-foreground mb-1">Tu situación financiera</h2>
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-1">Tu situación financiera</h2>
                     <p className="text-muted-foreground text-sm">Ingreso mensual y tu gran meta.</p>
                   </div>
                   <div className="space-y-5">
                     <div>
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">
-                        <DollarSign className="inline w-3 h-3 mr-1" />
-                        Ingreso mensual: <span className="text-primary font-bold text-lg">${form.monthlyIncome.toLocaleString()}</span>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                        <DollarSign className="w-3 h-3" />
+                        Ingreso mensual: <span className="text-primary font-bold text-base ml-1">${form.monthlyIncome.toLocaleString()}</span>
                       </label>
                       <Slider
                         data-testid="slider-income"
@@ -208,14 +207,14 @@ export default function Onboarding() {
                               key={g.id}
                               data-testid={`btn-goal-${g.id}`}
                               onClick={() => setForm(f => ({ ...f, goal: g.id }))}
-                              className={`p-3 rounded-xl text-left transition-all glass-hover ${
+                              className={`p-3 rounded-xl text-left transition-all ${
                                 form.goal === g.id
                                   ? "bg-primary/20 border border-primary/60 glow-primary"
                                   : "bg-secondary/30 border border-border hover:border-primary/30"
                               }`}
                             >
                               <Icon className={`w-4 h-4 mb-1 ${form.goal === g.id ? "text-primary" : "text-muted-foreground"}`} />
-                              <div className="text-xs font-semibold text-foreground">{g.label}</div>
+                              <div className="text-xs font-semibold text-foreground leading-tight">{g.label}</div>
                               <div className="text-xs text-muted-foreground">{g.desc}</div>
                             </button>
                           );
@@ -227,12 +226,12 @@ export default function Onboarding() {
               )}
 
               {step === 2 && (
-                <div className="space-y-5">
+                <div className="space-y-4">
                   <div>
-                    <h2 className="text-2xl font-bold text-foreground mb-1">Todo listo, {form.name || "campeón"}</h2>
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-1">Todo listo, {form.name || "campeón"}</h2>
                     <p className="text-muted-foreground text-sm">Aquí empieza tu simulación financiera.</p>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {[
                       { label: "Avanza años", desc: "Simula decisiones año a año" },
                       { label: "Toma decisiones", desc: "Invertir, ahorrar, cambiar trabajo" },
@@ -241,9 +240,9 @@ export default function Onboarding() {
                     ].map((f, i) => (
                       <motion.div
                         key={f.label}
-                        initial={{ opacity: 0, x: 20 }}
+                        initial={{ opacity: 0, x: 16 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.1 }}
+                        transition={{ delay: i * 0.08 }}
                         className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border"
                       >
                         <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
@@ -256,7 +255,7 @@ export default function Onboarding() {
                       </motion.div>
                     ))}
                   </div>
-                  <div className="pt-1 p-3 rounded-xl bg-primary/10 border border-primary/20">
+                  <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
                     <p className="text-xs text-primary">
                       Edad inicial: <strong>{form.age}</strong> · País: <strong>{form.country}</strong> · Ingreso: <strong>${form.monthlyIncome.toLocaleString()}/mes</strong>
                     </p>
@@ -268,7 +267,7 @@ export default function Onboarding() {
         </div>
 
         {/* Navigation */}
-        <div className="flex gap-3 mt-6">
+        <div className="flex gap-3 mt-4 pb-8">
           {step > 0 && (
             <Button
               variant="outline"

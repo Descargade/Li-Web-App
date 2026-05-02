@@ -6,7 +6,7 @@ import {
   Clock, GitCompare, Activity, Wallet, PiggyBank, LineChart,
   AlertTriangle, Zap, Target, X, Menu,
   Check, SkipForward, Award, Trophy, Lock,
-  ChevronDown, ArrowLeft, Plus
+  ChevronDown, ArrowLeft, Plus, RotateCcw, Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,7 +22,8 @@ import {
 } from "@/lib/scenarios";
 import {
   advanceYear, getCardsForYear, getFeedbackMessages,
-  formatCurrency, applyImpact, calculateScore, scoreGrade, gradeColor
+  formatCurrency, applyImpact, calculateScore, scoreGrade, gradeColor,
+  createInitialState
 } from "@/lib/simulation";
 import {
   checkAchievements, updateAchievementData,
@@ -734,6 +735,7 @@ export default function Dashboard() {
   const [pendingEvent, setPendingEvent] = useState<TimelineEvent | null>(null);
   const [yearSummary, setYearSummary] = useState<YearSummary | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [resetConfirming, setResetConfirming] = useState(false);
   const { queue: toastQueue, push: pushToasts, dismiss: dismissToast } = useAchievementToasts();
 
   useEffect(() => {
@@ -756,6 +758,30 @@ export default function Dashboard() {
     updateScenarioState(activeScenario.id, state);
     setActiveScenario(prev => prev ? { ...prev, state } : null);
   }, [activeScenario?.id]);
+
+  const resetSimulation = useCallback(() => {
+    if (!activeScenario || !simState?.profile) return;
+    const freshFinancial = createInitialState(simState.profile);
+    const freshState: SimulationState = {
+      ...simState,
+      financial: freshFinancial,
+      history: [{ ...freshFinancial }],
+      timeline: [],
+      score: 0,
+      unlockedAchievements: [],
+      achievementData: {
+        acceptedDecisionIds: [],
+        highRiskCount: 0,
+        hadDebt: false,
+        investmentDecisionCount: 0,
+        careerDecisionCount: 0,
+        consecutiveGrowthYears: 0,
+      },
+    };
+    save(freshState);
+    refreshCards(freshState.financial);
+    setResetConfirming(false);
+  }, [activeScenario?.id, simState]);
 
   const switchScenario = (id: string) => {
     setActiveScenarioId(id);
@@ -879,6 +905,26 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+      {/* Year progress indicator */}
+      <div className="glass rounded-xl px-3 py-2.5">
+        <div className="flex items-center justify-between text-xs mb-2">
+          <span className="text-muted-foreground font-medium">Progreso de simulación</span>
+          <span className="text-foreground font-bold">Año {financial.year} <span className="text-muted-foreground font-normal">/ 20</span></span>
+        </div>
+        <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+          <motion.div
+            animate={{ width: `${Math.min(100, (financial.year / 20) * 100)}%` }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="h-full rounded-full"
+            style={{ background: scenarioColor.chart }}
+          />
+        </div>
+        <div className="flex justify-between text-xs text-muted-foreground mt-1.5">
+          <span>Edad {financial.age}</span>
+          <span>{Math.round(Math.min(100, (financial.year / 20) * 100))}% completado</span>
+        </div>
+      </div>
+
       <motion.button
         whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
         onClick={advanceOneYear}
@@ -891,11 +937,59 @@ export default function Dashboard() {
           : <><Play className="w-4 h-4" />Avanzar año {financial.year + 1}</>
         }
       </motion.button>
-      {!allCardsDone && pendingCount > 0 && (
+      {allCardsDone ? (
+        <p className="text-center text-xs text-green-400 flex items-center justify-center gap-1">
+          <Sparkles className="w-3 h-3" />¡Listo para avanzar al siguiente año!
+        </p>
+      ) : pendingCount > 0 ? (
         <p className="text-center text-xs text-muted-foreground">
           {pendingCount} decisión{pendingCount > 1 ? 'es' : ''} pendiente{pendingCount > 1 ? 's' : ''}
         </p>
+      ) : null}
+
+      {/* Recent decisions */}
+      {simState.timeline.filter(e => e.type === 'decision').length > 0 && (
+        <div className="glass rounded-xl p-3">
+          <div className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-widest">Últimas decisiones</div>
+          <div className="space-y-1.5">
+            {simState.timeline.filter(e => e.type === 'decision').slice(-3).reverse().map(e => (
+              <div key={e.id} className="flex items-center gap-2 text-xs py-0.5">
+                <span className="text-base leading-none shrink-0">{e.icon}</span>
+                <span className="text-foreground/80 truncate flex-1">{e.title}</span>
+                <span className="text-muted-foreground shrink-0 tabular-nums">A{e.year}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
+
+      {/* Reset simulation */}
+      <AnimatePresence>
+        {resetConfirming ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }}
+            className="glass rounded-xl p-3 border border-red-400/30 space-y-2"
+          >
+            <p className="text-xs text-center text-foreground/80">¿Reiniciar desde el año 1? Se perderá el progreso.</p>
+            <div className="flex gap-2">
+              <button onClick={resetSimulation} className="flex-1 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs font-semibold hover:bg-red-500/30 transition-colors">
+                Reiniciar
+              </button>
+              <button onClick={() => setResetConfirming(false)} className="flex-1 py-1.5 rounded-lg bg-secondary text-muted-foreground text-xs font-semibold hover:bg-secondary/80 transition-colors">
+                Cancelar
+              </button>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.button
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setResetConfirming(true)}
+            className="w-full py-2 rounded-xl text-xs text-muted-foreground/50 hover:text-muted-foreground border border-dashed border-border/30 hover:border-border/60 transition-all flex items-center justify-center gap-1.5"
+          >
+            <RotateCcw className="w-3 h-3" />Reiniciar simulación
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 
@@ -906,8 +1000,18 @@ export default function Dashboard() {
         <div className="absolute -bottom-60 -right-60 w-[400px] h-[400px] rounded-full bg-accent/8 blur-3xl" />
       </div>
 
+      {/* Simulation year progress strip */}
+      <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-border/30 overflow-hidden">
+        <motion.div
+          className="absolute inset-y-0 left-0"
+          style={{ background: scenarioColor.chart }}
+          animate={{ width: `${Math.min(100, (financial.year / 20) * 100)}%` }}
+          transition={{ duration: 1, ease: "easeOut" }}
+        />
+      </div>
+
       {/* Header */}
-      <header className="relative border-b border-border/50 px-4 sm:px-5 py-3 flex items-center justify-between backdrop-blur-sm bg-background/80 sticky top-0 z-30 gap-2">
+      <header className="relative border-b border-border/50 px-4 sm:px-5 py-3 flex items-center justify-between backdrop-blur-sm bg-background/80 sticky top-0 z-30 gap-2 mt-0.5">
         <div className="flex items-center gap-2 min-w-0">
           <button className="lg:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0" onClick={() => setSidebarOpen(v => !v)}>
             <Menu className="w-4 h-4" />
@@ -967,7 +1071,7 @@ export default function Dashboard() {
 
         <main className="flex-1 min-w-0 p-4 sm:p-5">
           <Tabs defaultValue="decisions">
-            <TabsList className="mb-4 bg-secondary/50 flex-wrap h-auto gap-y-1 w-full sm:w-auto">
+            <TabsList className="mb-4 bg-secondary/50 overflow-x-auto scrollbar-none flex-nowrap w-full sm:w-auto">
               <TabsTrigger value="decisions" data-testid="tab-decisions" className="text-xs sm:text-sm relative">
                 <Target className="w-3.5 h-3.5 mr-1" />Decisiones
                 {pendingCount > 0 && (

@@ -29,13 +29,19 @@ A premium dark-mode fintech interactive life simulator built with React + Vite.
   - Full simulation engine: yearly advance, inflation, investment returns, debt interest
   - 12+ interactive decisions per year (job change, invest, buy house, etc.)
   - 18 random event pool (crises, promotions, emergencies, windfalls)
-  - Animated net worth evolution chart
-  - Interactive timeline with event nodes
-  - Scenario A/B comparison
-  - Analysis tab with pie/bar charts
-  - Stress/happiness tracking
-  - Contextual AI-like feedback messages
-  - Auto-save and reset
+  - Multi-scenario system: up to 6 parallel "alternative lives" with color/emoji
+  - Achievement system: 20 achievements with toast notifications and trophy shelf
+  - Deterministic AI Financial Advisor: 5-section structured reports per risk profile
+  - Financial Projections engine: 20-year forecasts across optimista/base/pesimista scenarios
+  - Animated net worth evolution chart + recharts timeline
+  - Cross-scenario comparison charts and head-to-head stats table
+  - Stress/happiness tracking with animated bars
+  - Year progress bar (animated strip at top + sidebar progress indicator)
+  - Recent decisions summary in sidebar
+  - Reset simulation button (with confirmation) — resets year to 1, keeps profile
+  - Landing page with "how it works" 3-step section and feature pills
+  - localStorage auto-save via `lfs-scenarios-v2` key
+  - Custom scrollbar, card-lift hover effects, smooth scroll, scrollbar-none utilities
 
 ### API Server (`/api`)
 - **Path**: `artifacts/api-server/`

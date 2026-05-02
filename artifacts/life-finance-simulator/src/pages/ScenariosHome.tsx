@@ -365,9 +365,21 @@ export default function ScenariosHome() {
           <h1 className="text-3xl sm:text-4xl font-black text-foreground leading-tight">
             Tus vidas <span className="text-primary">alternativas</span>
           </h1>
-          <p className="text-muted-foreground mt-2 text-sm max-w-md mx-auto">
-            Simula diferentes caminos financieros y compara sus resultados a lo largo del tiempo.
+          <p className="text-muted-foreground mt-3 text-sm max-w-md mx-auto leading-relaxed">
+            Simula diferentes caminos financieros año a año y descubre cómo cada decisión cambia tu futuro económico.
           </p>
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+            {[
+              { icon: "🎯", label: "Decisiones reales" },
+              { icon: "📊", label: "Proyecciones a 20 años" },
+              { icon: "🏆", label: "20 logros desbloqueables" },
+              { icon: "🔀", label: "Vidas paralelas" },
+            ].map(f => (
+              <span key={f.label} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass text-xs text-muted-foreground font-medium">
+                <span>{f.icon}</span>{f.label}
+              </span>
+            ))}
+          </div>
         </motion.div>
 
         {/* Action bar */}
@@ -402,16 +414,36 @@ export default function ScenariosHome() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center py-20"
+            className="text-center py-10"
           >
-            <div className="text-6xl mb-4">🌌</div>
-            <h2 className="text-xl font-bold text-foreground mb-2">No hay simulaciones todavía</h2>
-            <p className="text-muted-foreground text-sm mb-6 max-w-xs mx-auto">
-              Crea tu primera vida alternativa y empieza a tomar decisiones financieras que importan.
+            <div className="text-7xl mb-5 animate-fade-in">🌌</div>
+            <h2 className="text-2xl font-black text-foreground mb-2">Empieza tu primera vida</h2>
+            <p className="text-muted-foreground text-sm mb-8 max-w-sm mx-auto leading-relaxed">
+              Elige tu punto de partida, toma decisiones financieras año a año y mira cómo tu patrimonio evoluciona.
             </p>
-            <Button onClick={() => setLocation('/new')} className="bg-primary glow-primary px-8 font-semibold">
-              <Plus className="w-4 h-4 mr-2" />Crear primera simulación
+
+            {/* How it works */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto mb-10 text-left">
+              {[
+                { step: "1", icon: "👤", title: "Define tu perfil", desc: "Nombre, país, ingresos y objetivo de vida." },
+                { step: "2", icon: "🎯", title: "Toma decisiones", desc: "Cada año enfrentas oportunidades reales: invertir, estudiar, emprender." },
+                { step: "3", icon: "📈", title: "Mira tu futuro", desc: "Proyecciones, análisis IA y comparación entre vidas paralelas." },
+              ].map(item => (
+                <div key={item.step} className="glass rounded-2xl p-4 flex gap-3 items-start card-lift">
+                  <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-black shrink-0 mt-0.5">{item.step}</div>
+                  <div>
+                    <div className="text-lg mb-1">{item.icon}</div>
+                    <div className="font-semibold text-sm text-foreground mb-1">{item.title}</div>
+                    <div className="text-xs text-muted-foreground leading-relaxed">{item.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Button onClick={() => setLocation('/new')} className="bg-primary glow-primary px-10 py-3 font-bold text-base">
+              <Plus className="w-4 h-4 mr-2" />Iniciar simulación
             </Button>
+            <p className="text-xs text-muted-foreground mt-3">Gratis · Sin cuenta · Todo en tu navegador</p>
           </motion.div>
         )}
 

@@ -76,7 +76,6 @@ export interface YearSummary {
   newAchievements: UnlockedAchievement[];
 }
 
-// Achievement definition — lives only in achievements.ts, not persisted
 export interface AchievementDef {
   id: string;
   title: string;
@@ -87,14 +86,12 @@ export interface AchievementDef {
   condition: (state: SimulationState) => boolean;
 }
 
-// Persisted: just IDs + when they unlocked
 export interface UnlockedAchievement {
   id: string;
   unlockedYear: number;
   unlockedAge: number;
 }
 
-// Mutable data needed by achievement conditions that can't be derived cheaply
 export interface AchievementData {
   acceptedDecisionIds: string[];
   highRiskCount: number;
@@ -116,4 +113,24 @@ export interface SimulationState {
   score: number;
   unlockedAchievements: UnlockedAchievement[];
   achievementData: AchievementData;
+}
+
+// ─── MULTI-SCENARIO TYPES ────────────────────────────────────────────────────
+
+export type ScenarioColor = 'violet' | 'cyan' | 'green' | 'amber' | 'rose' | 'orange';
+
+export interface Scenario {
+  id: string;
+  name: string;
+  description: string;
+  color: ScenarioColor;
+  emoji: string;
+  createdAt: string;
+  state: SimulationState;
+}
+
+export interface ScenariosStore {
+  scenarios: Scenario[];
+  activeId: string | null;
+  version: number;
 }

@@ -1,31 +1,23 @@
 import { useEffect } from "react";
-import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import ScenariosHome from "@/pages/ScenariosHome";
 import Onboarding from "@/pages/Onboarding";
 import Dashboard from "@/pages/Dashboard";
-import { hasExistingSimulation } from "@/lib/storage";
 
 const queryClient = new QueryClient();
 
 function AppRouter() {
-  const [location, setLocation] = useLocation();
-
-  useEffect(() => {
-    if (location === "/" && hasExistingSimulation()) {
-      setLocation("/dashboard");
-    }
-  }, []);
-
   return (
     <Switch>
-      <Route path="/" component={Onboarding} />
-      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/" component={ScenariosHome} />
+      <Route path="/new" component={Onboarding} />
+      <Route path="/play" component={Dashboard} />
       <Route>
         <div className="min-h-screen flex items-center justify-center text-foreground">
           <div className="text-center">
-            <h1 className="text-2xl font-bold">Página no encontrada</h1>
+            <h1 className="text-2xl font-bold mb-4">Página no encontrada</h1>
           </div>
         </div>
       </Route>
@@ -44,7 +36,6 @@ function App() {
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <AppRouter />
         </WouterRouter>
-        <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
   );

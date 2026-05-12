@@ -1,39 +1,70 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <style>
-    .bg { fill: #0f172a; }
-    .line {
-      stroke: #22c55e;
-      stroke-width: 5;
-      fill: none;
-      stroke-linecap: round;
-      stroke-dasharray: 100;
-      stroke-dashoffset: 100;
-      animation: draw 2s ease-in-out infinite;
-    }
-    .dot {
-      fill: #22c55e;
-      animation: pulse 1.5s ease-in-out infinite;
-      transform-origin: center;
-    }
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <!-- Fondo -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07111f"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
 
-    @keyframes draw {
-      0% { stroke-dashoffset: 100; opacity: 0; }
-      40% { opacity: 1; }
-      100% { stroke-dashoffset: 0; opacity: 1; }
-    }
+    <!-- Gradiente financiero -->
+    <linearGradient id="finance" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ADE80"/>
+      <stop offset="50%" stop-color="#2DD4BF"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
 
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); opacity: 0.7; }
-      50% { transform: scale(1.4); opacity: 1; }
-    }
-  </style>
+    <!-- Glow -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
 
-  <!-- background -->
-  <rect class="bg" width="100" height="100" rx="20"/>
+  <!-- Fondo -->
+  <rect width="256" height="256" rx="56" fill="url(#bg)" />
 
-  <!-- growth line -->
-  <path class="line" d="M20 70 L40 50 L55 60 L75 35 L85 25"/>
+  <!-- Gráfico ascendente -->
+  <path
+    d="M52 168
+       L92 138
+       L124 154
+       L168 102
+       L204 74"
+    fill="none"
+    stroke="url(#finance)"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#glow)"
+  />
 
-  <!-- moving highlight dot -->
-  <circle class="dot" cx="85" cy="25" r="4"/>
+  <!-- Puntos -->
+  <circle cx="52" cy="168" r="8" fill="#4ADE80"/>
+  <circle cx="92" cy="138" r="8" fill="#4ADE80"/>
+  <circle cx="124" cy="154" r="8" fill="#2DD4BF"/>
+  <circle cx="168" cy="102" r="8" fill="#38BDF8"/>
+  <circle cx="204" cy="74" r="8" fill="#7DD3FC"/>
+
+  <!-- Flecha -->
+  <path
+    d="M186 72 L208 72 L208 94"
+    fill="none"
+    stroke="#7DD3FC"
+    stroke-width="10"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Detalle circular -->
+  <circle
+    cx="128"
+    cy="128"
+    r="84"
+    stroke="rgba(255,255,255,0.05)"
+    stroke-width="2"
+    fill="none"
+  />
 </svg>
